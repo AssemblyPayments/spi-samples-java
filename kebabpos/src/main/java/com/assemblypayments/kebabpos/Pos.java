@@ -1,8 +1,13 @@
 package com.assemblypayments.kebabpos;
 
-import com.assemblypayments.spi.Spi;
-import com.assemblypayments.spi.model.*;
-import com.assemblypayments.spi.util.RequestIdHelper;
+//import com.assemblypayments.spi.Spi;
+//import com.assemblypayments.spi.model.*;
+//import com.assemblypayments.spi.util.RequestIdHelper;
+//import com.assemblypayments.utils.SystemHelper;
+import io.mx51.spi.Spi;
+import io.mx51.spi.Spi;
+import io.mx51.spi.model.*;
+import io.mx51.spi.util.RequestIdHelper;
 import com.assemblypayments.utils.SystemHelper;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
@@ -11,10 +16,11 @@ import org.apache.logging.log4j.Logger;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Scanner;
 
-import static com.assemblypayments.spi.model.SpiFlow.TRANSACTION;
-import static com.assemblypayments.spi.model.TransactionType.PURCHASE;
+import static io.mx51.spi.model.SpiFlow.TRANSACTION;
+import static io.mx51.spi.model.TransactionType.PURCHASE;
 
 /**
  * NOTE: THIS PROJECT USES THE 2.1.x of the SPI Client Library
@@ -48,7 +54,7 @@ public class Pos {
 
         try {
             // This is how you instantiate SPI while checking for JDK compatibility.
-            spi = new Spi(posId, eftposAddress, spiSecrets); // It is ok to not have the secrets yet to start with.
+            spi = new Spi(posId, eftposAddress, "", spiSecrets); // It is ok to not have the secrets yet to start with.
         } catch (Spi.CompatibilityException e) {
             System.out.println("# ");
             System.out.println("# Compatibility check failed: " + e.getCause().getMessage());
@@ -58,7 +64,7 @@ public class Pos {
         }
 
         try {
-            spi.setPosInfo("assembly", "2.3.0");
+            spi.setPosInfo("kebabpos", "2.3.0");
             options = new TransactionOptions();
             spi.setStatusChangedHandler(new Spi.EventHandler<SpiStatus>() {
                 @Override
@@ -492,6 +498,8 @@ public class Pos {
         System.out.println("# ----------- AVAILABLE ACTIONS ------------");
 
         if (spi.getCurrentFlow() == SpiFlow.IDLE) {
+            System.out.println("# [tenant_list] - get tenants code");
+            System.out.println("# [tenant:wbc] - set tenant code to wbc");
             System.out.println("# [kebab:1200:100:500:false] - [kebab:price:tip:cashout:promptForCash] charge for kebab with extras!");
             System.out.println("# [13kebab:1300] - MOTO - accept payment over the phone");
             System.out.println("# [yuck:500] - hand out a refund of $5.00!");
@@ -598,6 +606,24 @@ public class Pos {
 
     private boolean processInput(String[] spInput) {
         switch (spInput[0].toLowerCase()) {
+            case "tenant_list":
+                Tenants tenantsList = Spi.GetAvailableTenants("test", "test", "AU");
+                printTenantList((tenantsList));
+                break;
+
+            case "tenant":
+                String tenantCode = "";
+                if (spInput.length > 1) {
+                    tenantCode = spInput[1];
+                    spi.setAcquirerCode(tenantCode);
+                    System.out.println("# Tenant code is set to: " + tenantCode.toString());
+                }
+                else {
+                    System.out.println("## -> Could not set Tenant code");
+                }
+                System.out.print("> ");
+                break;
+
             case "purchase":
             case "kebab":
                 int tipAmount = 0;
@@ -798,6 +824,17 @@ public class Pos {
         return false;
     }
 
+    private void printTenantList(Tenants tenants)
+    {
+        String format = "%-32s %s\n";
+        System.out.format(format, "Tenant Name", "Tenant Code\n");
+        for (TenantDetails i : tenants.data)
+        {
+            System.out.format(format, i.getName(), i.getCode());
+        }
+        System.out.print("> ");
+    }
+
     private void loadPersistedState(String[] args) {
         if (args.length < 1) return;
 
@@ -812,5 +849,4 @@ public class Pos {
         if (argSplit.length < 4) return;
         spiSecrets = new Secrets(argSplit[2], argSplit[3]);
     }
-
 }
